@@ -71,6 +71,7 @@ export async function updatePlayerProfile(req, res) {
       .from("players")
       .update(filteredUpdates)
       .eq("id", playerId)
+      .select() // <---- Add this line
       .maybeSingle();
 
     if (error) {
