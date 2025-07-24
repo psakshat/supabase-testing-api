@@ -17,18 +17,20 @@ export async function authMiddleware(req, res, next) {
 
     const token = authHeader.split(" ")[1];
 
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token);
+    const { data, error } = await supabase.auth.getUser(token);
 
-    if (error || !user) {
+    if (error || !data?.user) {
+      console.error("Auth failed:", error || "User not found");
       return res.status(401).json({ error: "Invalid token or user not found" });
     }
 
-    req.user = user;
+    // 🟡 DEBUG: Log the user ID
+    console.log("Authenticated user ID:", data.user.id);
+
+    req.user = data.user;
     next();
   } catch (error) {
+    console.error("Auth middleware error:", error.message);
     res.status(500).json({ error: "Authentication failed" });
   }
 }
