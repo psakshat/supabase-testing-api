@@ -1,10 +1,13 @@
-import { supabase } from "../supabaseClient.js";
+import { supabase } from "./supabaseClient.js";
 
-// Get current player's profile
 export async function getPlayerProfile(req, res) {
   try {
-    const playerId = req.user.id;
+    const playerId = req.user?.id;
     console.log("Fetching profile for playerId:", playerId);
+
+    if (!playerId) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
 
     const { data, error } = await supabase
       .from("players")
@@ -18,6 +21,7 @@ export async function getPlayerProfile(req, res) {
     }
 
     if (!data) {
+      console.log("No player found with id:", playerId);
       return res.status(404).json({ error: "Player not found" });
     }
 
@@ -28,11 +32,14 @@ export async function getPlayerProfile(req, res) {
   }
 }
 
-// Update current player's profile
 export async function updatePlayerProfile(req, res) {
   try {
-    const playerId = req.user.id;
+    const playerId = req.user?.id;
     console.log("Updating profile for playerId:", playerId);
+
+    if (!playerId) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
 
     const updates = req.body;
 
@@ -49,7 +56,6 @@ export async function updatePlayerProfile(req, res) {
       "profile_image_url",
     ];
 
-    // Filter only allowed fields
     const filteredUpdates = {};
     for (const key of allowedFields) {
       if (Object.prototype.hasOwnProperty.call(updates, key)) {
