@@ -1,0 +1,244 @@
+-- Additional Database Setup Scripts
+
+-- Enable Row Level Security on all tables
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE skills ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE task_skills ENABLE ROW LEVEL SECURITY;
+ALTER TABLE task_completions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE enemies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE enemy_triggers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE power_ups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE power_up_purchases ENABLE ROW LEVEL SECURITY;
+ALTER TABLE achievements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_achievements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payment_transactions ENABLE ROW LEVEL SECURITY;
+
+-- Row Level Security Policies
+-- Users can only access their own data
+CREATE POLICY "Users can view own profile" ON users FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON users FOR UPDATE USING (auth.uid() = id);
+
+CREATE POLICY "Users can view own skills" ON skills FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own tasks" ON tasks FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own task completions" ON task_completions FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own enemies" ON enemies FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own enemy triggers" ON enemy_triggers FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own power ups" ON power_ups FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own purchases" ON power_up_purchases FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own achievements" ON user_achievements FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own notifications" ON notifications FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own transactions" ON payment_transactions FOR ALL USING (auth.uid() = user_id);
+
+-- Allow public read access to achievements
+CREATE POLICY "Anyone can view achievements" ON achievements FOR SELECT USING (true);
+
+-- Performance Indexes
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_skills_user_id ON skills(user_id);
+CREATE INDEX idx_tasks_user_id ON tasks(user_id);
+CREATE INDEX idx_tasks_frequency_type ON tasks(frequency_type);
+CREATE INDEX idx_task_completions_user_id ON task_completions(user_id);
+CREATE INDEX idx_task_completions_task_id ON task_completions(task_id);
+CREATE INDEX idx_task_completions_date ON task_completions(completed_date);
+CREATE INDEX idx_enemies_user_id ON enemies(user_id);
+CREATE INDEX idx_enemy_triggers_user_id ON enemy_triggers(user_id);
+CREATE INDEX idx_enemy_triggers_date ON enemy_triggers(triggered_date);
+CREATE INDEX idx_power_ups_user_id ON power_ups(user_id);
+CREATE INDEX idx_power_up_purchases_user_id ON power_up_purchases(user_id);
+CREATE INDEX idx_user_achievements_user_id ON user_achievements(user_id);
+CREATE INDEX idx_user_achievements_completed ON user_achievements(user_id, is_completed);
+CREATE INDEX idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX idx_notifications_scheduled ON notifications(scheduled_for) WHERE scheduled_for IS NOT NULL;
+CREATE INDEX idx_payment_transactions_user_id ON payment_transactions(user_id);
+
+-- Composite indexes for common queries
+CREATE INDEX idx_tasks_user_active ON tasks(user_id, is_active);
+CREATE INDEX idx_task_completions_user_date ON task_completions(user_id, completed_date);
+CREATE INDEX idx_user_achievements_progress ON user_achievements(user_id, achievement_id, is_completed);
+
+-- Database Functions
+
+-- Function to calculate XP required for next level (formula based)
+CREATE OR REPLACE FUNCTION calculate_xp_for_level(
+  current_level INTEGER,
+  base_xp INTEGER DEFAULT 100,
+  growth_multiplier DECIMAL DEFAULT 1.5
+) RETURNS INTEGER AS $$
+BEGIN
+  RETURN CEIL(base_xp * POWER(growth_multiplier, current_level - 1));
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to get user's current level based on total XP
+CREATE OR REPLACE FUNCTION get_level_from_xp(
+  total_xp BIGINT,
+  base_xp INTEGER DEFAULT 100,
+  growth_multiplier DECIMAL DEFAULT 1.5
+) RETURNS INTEGER AS $$
+DECLARE
+  level INTEGER := 1;
+  xp_needed BIGINT := 0;
+BEGIN
+  WHILE xp_needed < total_xp LOOP
+    level := level + 1;
+    xp_needed := xp_needed + calculate_xp_for_level(level - 1, base_xp, growth_multiplier);
+  END LOOP;
+  RETURN level - 1;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to update user's level when XP changes
+CREATE OR REPLACE FUNCTION update_user_level()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Update user level based on new total_xp
+  NEW.overall_level := get_level_from_xp(NEW.total_xp);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to automatically update user level when XP changes
+CREATE TRIGGER trigger_update_user_level
+  BEFORE UPDATE OF total_xp ON users
+  FOR EACH ROW
+  EXECUTE FUNCTION update_user_level();
+
+-- Function to update skill level when XP changes
+CREATE OR REPLACE FUNCTION update_skill_level()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Only update if xp_config_type is 'formula'
+  IF NEW.xp_config_type = 'formula' THEN
+    NEW.level := get_level_from_xp(NEW.current_xp, NEW.base_xp, NEW.growth_multiplier);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to automatically update skill level when XP changes
+CREATE TRIGGER trigger_update_skill_level
+  BEFORE UPDATE OF current_xp ON skills
+  FOR EACH ROW
+  EXECUTE FUNCTION update_skill_level();
+
+-- Function to update task level when XP changes
+CREATE OR REPLACE FUNCTION update_task_level()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Only update if xp_config_type is 'formula'
+  IF NEW.xp_config_type = 'formula' THEN
+    NEW.level := get_level_from_xp(NEW.current_xp, NEW.base_xp, NEW.growth_multiplier);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to automatically update task level when XP changes
+CREATE TRIGGER trigger_update_task_level
+  BEFORE UPDATE OF current_xp ON tasks
+  FOR EACH ROW
+  EXECUTE FUNCTION update_task_level();
+
+-- Function to automatically update timestamps
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Add updated_at triggers to all relevant tables
+CREATE TRIGGER trigger_users_updated_at 
+  BEFORE UPDATE ON users 
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER trigger_skills_updated_at 
+  BEFORE UPDATE ON skills 
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER trigger_tasks_updated_at 
+  BEFORE UPDATE ON tasks 
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER trigger_enemies_updated_at 
+  BEFORE UPDATE ON enemies 
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER trigger_power_ups_updated_at 
+  BEFORE UPDATE ON power_ups 
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER trigger_payment_transactions_updated_at 
+  BEFORE UPDATE ON payment_transactions 
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Views for common queries
+
+-- View for user dashboard data
+CREATE VIEW user_dashboard AS
+SELECT 
+  u.id,
+  u.username,
+  u.title,
+  u.profile_image_url,
+  u.overall_level,
+  u.total_xp,
+  u.current_hp,
+  u.max_hp,
+  u.in_app_currency,
+  u.gems,
+  u.game_difficulty,
+  u.is_punished,
+  COUNT(DISTINCT s.id) as total_skills,
+  COUNT(DISTINCT t.id) as total_tasks,
+  COUNT(DISTINCT e.id) as total_enemies,
+  COUNT(DISTINCT ua.id) FILTER (WHERE ua.is_completed = true) as completed_achievements
+FROM users u
+LEFT JOIN skills s ON u.id = s.user_id
+LEFT JOIN tasks t ON u.id = t.user_id AND t.is_active = true
+LEFT JOIN enemies e ON u.id = e.user_id
+LEFT JOIN user_achievements ua ON u.id = ua.user_id
+GROUP BY u.id;
+
+-- View for task completion statistics
+CREATE VIEW task_completion_stats AS
+SELECT 
+  t.id as task_id,
+  t.user_id,
+  t.name,
+  t.current_streak,
+  t.best_streak,
+  t.total_completions,
+  COUNT(tc.id) as completions_this_month,
+  COUNT(tc.id) FILTER (WHERE tc.completed_date >= CURRENT_DATE - INTERVAL '7 days') as completions_this_week,
+  ROUND(
+    COUNT(tc.id) * 100.0 / GREATEST(
+      EXTRACT(DAY FROM CURRENT_DATE - MIN(tc.completed_date))::INTEGER, 1
+    ), 2
+  ) as completion_rate_percentage
+FROM tasks t
+LEFT JOIN task_completions tc ON t.id = tc.task_id 
+  AND tc.completed_date >= CURRENT_DATE - INTERVAL '30 days'
+WHERE t.is_active = true
+GROUP BY t.id, t.user_id, t.name, t.current_streak, t.best_streak, t.total_completions;
+
+-- Seed data for default achievements
+INSERT INTO achievements (name, description, category, condition_config, reward_config, icon_url) VALUES
+('First Steps', 'Complete your first task', 'milestone', '{"type": "task_completion", "value": 1}', '{"currency": 50, "xp": 25}', '/icons/first-steps.png'),
+('Consistency King', 'Maintain a 7-day streak on any task', 'consistency', '{"type": "streak", "value": 7}', '{"currency": 100, "xp": 50}', '/icons/consistency-king.png'),
+('Level Up!', 'Reach level 5', 'milestone', '{"type": "user_level", "value": 5}', '{"currency": 200, "gems": 1, "xp": 100}', '/icons/level-up.png'),
+('Skill Master', 'Reach level 10 in any skill', 'milestone', '{"type": "skill_level", "value": 10}', '{"currency": 300, "gems": 2, "xp": 150}', '/icons/skill-master.png'),
+('Comeback Kid', 'Complete a task after losing all HP', 'recovery', '{"type": "revival_task", "value": 1}', '{"currency": 150, "xp": 75}', '/icons/comeback-kid.png'),
+('Enemy Slayer', 'Avoid a bad habit for 30 days', 'consistency', '{"type": "enemy_avoidance", "value": 30}', '{"currency": 250, "gems": 1, "xp": 125}', '/icons/enemy-slayer.png');
+
+-- Seed data for default power-ups (system items)
+INSERT INTO power_ups (name, description, icon_url, effect_type, effect_value, cost_currency, cost_gems, usage_limit_per_day, is_system_item) VALUES
+('Health Potion', 'Restore 25 HP instantly', '/icons/health-potion.png', 'hp_restore', 25, 100, NULL, 3, true),
+('Greater Health Potion', 'Restore 50 HP instantly', '/icons/greater-health-potion.png', 'hp_restore', 50, 200, NULL, 2, true),
+('XP Boost', 'Double XP for next task completion', '/icons/xp-boost.png', 'xp_boost', 100, NULL, 1, 1, true),
+('Extra Life', 'Avoid punishment when HP reaches 0', '/icons/extra-life.png', 'extra_life', 1, NULL, 5, 1, true),
+('Full Heal', 'Restore all HP', '/icons/full-heal.png', 'hp_restore', 9999, NULL, 2, 1, true);
