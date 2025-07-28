@@ -30,6 +30,7 @@ const authRoutes = require("./src/routes/auth.js");
 const userRoutes = require("./src/routes/users.js");
 const skillRoutes = require("./src/routes/skills.js");
 const taskRoutes = require("./src/routes/tasks");
+const enemyRoutes = require("./src/routes/enemies");
 
 const app = express();
 require("dotenv").config();
@@ -48,6 +49,7 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/skills", skillRoutes);
 app.use("/api/v1/tasks", taskRoutes);
+app.use("/api/v1/enemies", enemyRoutes);
 
 app.get("/", (req, res) => {
   res.send("Welcome to the API!");

@@ -78,23 +78,57 @@ const getEnemy = async (req, res, next) => {
   }
 };
 
+// const updateEnemy = async (req, res, next) => {
+//   try {
+//     const { id } = req.params;
+//     const { userId } = req;
+//     const updates = req.body;
+
+//     const { data: enemy, error } = await supabaseAdmin
+//       .from("enemies")
+//       .update(updates)
+//       .eq("id", id)
+//       .eq("user_id", userId)
+//       .select()
+//       .single();
+
+//     if (error) {
+//       throw new AppError(error.message, 400);
+//     }
+
+//     res.status(200).json({
+//       status: "success",
+//       data: {
+//         enemy,
+//       },
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 const updateEnemy = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { userId } = req;
     const updates = req.body;
 
-    const { data: enemy, error } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("enemies")
       .update(updates)
       .eq("id", id)
       .eq("user_id", userId)
-      .select()
-      .single();
+      .select(); // Do not use `.single()` here
 
     if (error) {
       throw new AppError(error.message, 400);
     }
+
+    // Check if a single enemy was updated
+    if (!data || data.length !== 1) {
+      throw new AppError("Enemy not found or update failed", 404);
+    }
+
+    const enemy = data[0];
 
     res.status(200).json({
       status: "success",

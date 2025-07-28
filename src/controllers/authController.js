@@ -1,4 +1,4 @@
-const { supabaseAdmin } = require("../config/supabase.js"); // your initialized supabase client
+const { supabaseAdmin } = require("../config/supabase.js");
 const { AppError } = require("../middleware/errorHandler");
 
 const register = async (req, res, next) => {
@@ -13,7 +13,7 @@ const register = async (req, res, next) => {
         email,
         password,
         options: {
-          data: { username, title }, // optional metadata on auth user, if needed
+          data: { username, title },
         },
       });
 
