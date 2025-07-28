@@ -5,8 +5,6 @@ const register = async (req, res, next) => {
   try {
     const { email, password, username, title } = req.body;
 
-    // console.log("Registering user:", { email, username, title });
-
     // 1. Sign up user with Supabase Auth
     const { data: signUpData, error: signUpError } =
       await supabaseAdmin.auth.signUp({

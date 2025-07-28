@@ -11,7 +11,7 @@ const authenticateToken = async (req, res, next) => {
     }
 
     const { data, error } = await supabaseAdmin.auth.getUser(token);
-    console.log("data received:", data);
+    // console.log("data received:", data);
     if (error || !data?.user) {
       throw new AppError("Invalid or expired token", 401);
     }

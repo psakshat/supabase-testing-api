@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 
-// This import must match exactly the exports from your controller file
 const {
   register,
   login,

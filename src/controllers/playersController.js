@@ -3,7 +3,7 @@ import { supabase } from "../supabaseClient.js";
 export async function getPlayerProfile(req, res) {
   try {
     const playerId = req.user?.id;
-    console.log("Fetching profile for playerId:", playerId);
+    // console.log("Fetching profile for playerId:", playerId);
 
     if (!playerId) {
       return res.status(401).json({ error: "User not authenticated" });
@@ -21,7 +21,7 @@ export async function getPlayerProfile(req, res) {
     }
 
     if (!data) {
-      console.log("No player found with id:", playerId);
+      // console.log("No player found with id:", playerId);
       return res.status(404).json({ error: "Player not found" });
     }
 
@@ -35,7 +35,7 @@ export async function getPlayerProfile(req, res) {
 export async function updatePlayerProfile(req, res) {
   try {
     const playerId = req.user?.id;
-    console.log("Updating profile for playerId:", playerId);
+    // console.log("Updating profile for playerId:", playerId);
 
     if (!playerId) {
       return res.status(401).json({ error: "User not authenticated" });
