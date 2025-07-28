@@ -64,6 +64,7 @@ const schemas = {
     name: Joi.string().min(1).max(100).required(),
     icon_url: Joi.string().uri().optional(),
     hp_reduction: Joi.number().integer().min(1).max(100).required(),
+    last_triggered_date: Joi.date().optional(),
   }),
 
   // Power-up schemas

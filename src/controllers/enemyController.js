@@ -117,7 +117,7 @@ const updateEnemy = async (req, res, next) => {
       .update(updates)
       .eq("id", id)
       .eq("user_id", userId)
-      .select(); // Do not use `.single()` here
+      .select();
 
     if (error) {
       throw new AppError(error.message, 400);
