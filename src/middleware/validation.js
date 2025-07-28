@@ -1,6 +1,7 @@
 const Joi = require("joi");
 const { AppError } = require("./errorHandler");
 
+// No need for icon_url validator here, we validate `icon` as a string (emoji)
 const validateRequest = (schema) => {
   return (req, res, next) => {
     const { error } = schema.validate(req.body);
@@ -34,10 +35,22 @@ const schemas = {
   }),
 
   // Skill schemas
+  // createSkill: Joi.object({
+  //   name: Joi.string().min(1).max(100).required(),
+  //   description: Joi.string().max(500).optional(),
+  //   // icon_url: Joi.string().uri().optional(),
+  //   xp_config_type: Joi.string().valid("formula", "custom").default("formula"),
+  //   base_xp: Joi.number().integer().min(1).default(100),
+  //   growth_multiplier: Joi.number().min(1).default(1.5),
+  //   custom_xp_levels: Joi.array()
+  //     .items(Joi.number().integer().min(1))
+  //     .optional(),
+  // }),
+  // Skill schemas
   createSkill: Joi.object({
     name: Joi.string().min(1).max(100).required(),
     description: Joi.string().max(500).optional(),
-    icon_url: Joi.string().uri().optional(),
+    icon: Joi.string().optional(), // Accept icon emoji from frontend
     xp_config_type: Joi.string().valid("formula", "custom").default("formula"),
     base_xp: Joi.number().integer().min(1).default(100),
     growth_multiplier: Joi.number().min(1).default(1.5),
