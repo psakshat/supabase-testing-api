@@ -24,7 +24,7 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-
+const { globalErrorHandler } = require("./src/middleware/errorHandler.js");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -53,6 +53,7 @@ app.get("/", (req, res) => {
   res.send("Welcome to the API!");
 });
 
+app.use(globalErrorHandler);
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server is running at http://localhost:${PORT}`);
