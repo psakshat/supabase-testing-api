@@ -76,7 +76,7 @@ const schemas = {
   createEnemy: Joi.object({
     name: Joi.string().min(1).max(100).required(),
     icon_url: Joi.string().uri().optional(),
-    hp_reduction: Joi.number().integer().min(1).max(100).required(),
+    hp_reduction: Joi.number().integer().min(1).max(1000).required(),
     last_triggered_date: Joi.date().optional(),
   }),
 

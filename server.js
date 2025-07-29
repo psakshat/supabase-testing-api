@@ -21,37 +21,39 @@
 //     console.log("Process terminated");
 //   });
 // });
-
 const express = require("express");
 const cors = require("cors");
+require("dotenv").config();
 
-// Import routes
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Middleware
+app.use(express.json());
+app.use(cors({ origin: "*" }));
+
+// Route imports
 const authRoutes = require("./src/routes/auth.js");
 const userRoutes = require("./src/routes/users.js");
 const skillRoutes = require("./src/routes/skills.js");
-const taskRoutes = require("./src/routes/tasks");
-const enemyRoutes = require("./src/routes/enemies");
+const taskRoutes = require("./src/routes/tasks.js");
+const enemyRoutes = require("./src/routes/enemies.js");
+const storeRoutes = require("./src/routes/storeRoutes.js");
 
-const app = express();
-require("dotenv").config();
-
-const PORT = process.env.PORT || 5000;
-app.use(express.json());
-app.use(
-  cors({
-    origin: "*", // Allow all origins
-  })
-);
-// API routes
+// Route usage
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/skills", skillRoutes);
 app.use("/api/v1/tasks", taskRoutes);
 app.use("/api/v1/enemies", enemyRoutes);
+app.use("/api/v1/store", storeRoutes);
 
+// Base route
 app.get("/", (req, res) => {
   res.send("Welcome to the API!");
 });
+
+// Start server
 app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`🚀 Server is running at http://localhost:${PORT}`);
 });

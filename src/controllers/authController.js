@@ -5,6 +5,21 @@ const register = async (req, res, next) => {
   try {
     const { email, password, username, title } = req.body;
 
+    // 🔍 Check if email already exists in 'users' table
+    const { data: existingEmail, error: emailCheckError } = await supabaseAdmin
+      .from("users")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (emailCheckError) {
+      throw new AppError("Failed to check existing email", 500);
+    }
+
+    if (existingEmail) {
+      throw new AppError("Email already registered", 400);
+    }
+
     // 1. Sign up user with Supabase Auth
     const { data: signUpData, error: signUpError } =
       await supabaseAdmin.auth.signUp({
@@ -21,7 +36,7 @@ const register = async (req, res, next) => {
 
     const user = signUpData.user;
 
-    // 2. Insert additional user info into your 'users' table
+    // 2. Insert additional user info into 'users' table
     const { error: userInsertError } = await supabaseAdmin
       .from("users")
       .insert([
@@ -35,16 +50,15 @@ const register = async (req, res, next) => {
       ]);
 
     if (userInsertError) {
-      // Optionally delete auth user to rollback if metadata insert fails (not shown here)
+      // Optional rollback
+      await supabaseAdmin.auth.admin.deleteUser(user.id);
+
       throw new AppError(
         "User registered but failed to save profile info: " +
           userInsertError.message,
         500
       );
     }
-
-    // 3. Generate token here if you want, or return user info for client to log in manually
-    // Supabase Auth session/token management can also be handled on frontend
 
     res.status(201).json({
       status: "success",
